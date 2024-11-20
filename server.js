@@ -26,7 +26,6 @@ const uri = `${dbPrefix}${dbUser}:${dbPassword}${dbHost}${dbParams}`;
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
 let db1;
-app.use(express.static(path.join(__dirname)));
 
 // Connect to MongoDB
 async function connectDB() {
@@ -41,14 +40,8 @@ async function connectDB() {
 
 connectDB();
 
-
 // Reference to the lessons collection
 const lessonsCollection = () => db1.collection('lessons');
-
-// Serve your index.html file when accessing the root route
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
 
 // Get all lessons
 app.get('/lessons', async function (req, res) {
