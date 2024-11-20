@@ -11,8 +11,6 @@ let PropertiesReader = require("properties-reader");
 let propertiesPath = path.resolve(__dirname, "./dbconnection.properties");
 let properties = PropertiesReader(propertiesPath);
 
-app.use(express.static(path.join(__dirname)));
-
 // Extract values from the properties file
 const dbPrefix = properties.get('db.prefix');
 const dbHost = properties.get('db.host');
@@ -28,6 +26,7 @@ const uri = `${dbPrefix}${dbUser}:${dbPassword}${dbHost}${dbParams}`;
 const client = new MongoClient(uri, { serverApi: ServerApiVersion.v1 });
 
 let db1;
+app.use(express.static(path.join(__dirname)));
 
 // Connect to MongoDB
 async function connectDB() {
@@ -43,9 +42,13 @@ async function connectDB() {
 connectDB();
 
 
-// Reference to the collections
+// Reference to the lessons collection
 const lessonsCollection = () => db1.collection('lessons');
-const ordersCollection = () => db1.collection('order_placed');
+
+// Serve your index.html file when accessing the root route
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
 
 // Get all lessons
 app.get('/lessons', async function (req, res) {
@@ -58,22 +61,37 @@ app.get('/lessons', async function (req, res) {
   }
 });
 
-// Serve index.html file
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
+// Get a single lesson by ID
+app.get('/lessons/:id', async function (req, res) {
+  try {
+    const lesson = await lessonsCollection().findOne({ _id: new ObjectId(req.params.id) });
+    if (lesson) {
+      res.json(lesson);
+    } else {
+      res.status(404).json({ error: 'Lesson not found' });
+    }
+  } catch (err) {
+    console.error('Error fetching lesson by ID:', err);
+    res.status(500).json({ error: 'Failed to fetch lesson by ID' });
+  }
 });
 
 // Add a new lesson
 app.post('/lessons', async function (req, res) {
-  try {
-    const lesson = req.body;
-    const result = await lessonsCollection().insertOne(lesson);
-    res.status(201).json(result.ops[0]);
-  } catch (err) {
-    console.error('Error adding lesson:', err);
-    res.status(500).json({ error: 'Failed to add lesson' });
-  }
-});
+    try {
+      const lesson = req.body;
+      const result = await lessonsCollection().insertOne(lesson);
+      if (result.acknowledged) {
+        const insertedLesson = await lessonsCollection().findOne({ _id: result.insertedId });
+        res.status(201).json(insertedLesson);
+      } else {
+        res.status(500).json({ error: 'Failed to add lesson' });
+      }
+    } catch (err) {
+      console.error('Error adding lesson:', err);
+      res.status(500).json({ error: 'Failed to add lesson' });
+    }
+  });
 
 // Update a lesson by ID
 app.put('/lessons/:id', async function (req, res) {
@@ -83,7 +101,11 @@ app.put('/lessons/:id', async function (req, res) {
       { _id: new ObjectId(req.params.id) },
       { $set: updatedLesson }
     );
-    res.json({ message: 'Lesson updated successfully' });
+    if (result.modifiedCount > 0) {
+      res.json({ message: 'Lesson updated successfully' });
+    } else {
+      res.status(404).json({ error: 'Lesson not found' });
+    }
   } catch (err) {
     console.error('Error updating lesson:', err);
     res.status(500).json({ error: 'Failed to update lesson' });
@@ -94,33 +116,14 @@ app.put('/lessons/:id', async function (req, res) {
 app.delete('/lessons/:id', async function (req, res) {
   try {
     const result = await lessonsCollection().deleteOne({ _id: new ObjectId(req.params.id) });
-    res.json({ message: 'Lesson deleted successfully' });
+    if (result.deletedCount > 0) {
+      res.json({ message: 'Lesson deleted successfully' });
+    } else {
+      res.status(404).json({ error: 'Lesson not found' });
+    }
   } catch (err) {
     console.error('Error deleting lesson:', err);
     res.status(500).json({ error: 'Failed to delete lesson' });
-  }
-});
-
-// Add a new order
-app.post('/order_placed', async function (req, res) {
-  try {
-    const order = req.body;
-    const result = await ordersCollection().insertOne(order);
-    res.status(201).json({ message: 'Order placed successfully' });
-  } catch (err) {
-    console.error('Error placing order:', err);
-    res.status(500).json({ error: 'Failed to place order' });
-  }
-});
-
-// Get all placed orders
-app.get('/order_placed', async function (req, res) {
-  try {
-    const orders = await ordersCollection().find({}).toArray();
-    res.json(orders);
-  } catch (err) {
-    console.error('Error fetching orders:', err);
-    res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
