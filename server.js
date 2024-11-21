@@ -84,6 +84,7 @@ app.put('/lessons/:id', async function (req, res) {
       { $set: updatedLesson }
     );
     res.json({ message: 'Lesson updated successfully' });
+    res.json(result);
   } catch (err) {
     console.error('Error updating lesson:', err);
     res.status(500).json({ error: 'Failed to update lesson' });
@@ -95,6 +96,7 @@ app.delete('/lessons/:id', async function (req, res) {
   try {
     const result = await lessonsCollection().deleteOne({ _id: new ObjectId(req.params.id) });
     res.json({ message: 'Lesson deleted successfully' });
+    res.json(result);
   } catch (err) {
     console.error('Error deleting lesson:', err);
     res.status(500).json({ error: 'Failed to delete lesson' });
@@ -107,6 +109,7 @@ app.post('/order_placed', async function (req, res) {
     const order = req.body;
     const result = await ordersCollection().insertOne(order);
     res.status(201).json({ message: 'Order placed successfully' });
+    res.json(result);
   } catch (err) {
     console.error('Error placing order:', err);
     res.status(500).json({ error: 'Failed to place order' });
