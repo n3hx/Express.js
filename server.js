@@ -80,27 +80,20 @@ app.get("/lessons", async (req, res) => {
 });
 
 // Get a lesson by ID
-app.post("/lessons", async (req, res) => {
+app.get("/lessons/:id", async (req, res) => {
   try {
-    const lesson = req.body;
-    console.log("Incoming lesson data:", lesson);
-    
-    const result = await lessonsCollection().insertOne(lesson);
-    console.log("Insert result:", result);
-    
-    res.status(201).json({
-      ...lesson,
-      _id: result.insertedId,
-    });
-  } catch (err) {
-    console.error("Error adding lesson:", err);
-    res.status(500).json({ error: "Failed to add lesson" });
-  }
-});
+    const lessonId = req.params.id;
+    const lesson = await lessonsCollection().findOne({ _id: new ObjectId(lessonId) });
 
-// Serve index.html file
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+    if (lesson) {
+      res.json(lesson);
+    } else {
+      res.status(404).json({ error: "Lesson not found" });
+    }
+  } catch (err) {
+    console.error("Error fetching lesson by ID:", err);
+    res.status(500).json({ error: "Failed to fetch lesson" });
+  }
 });
 
 // Add a new lesson
